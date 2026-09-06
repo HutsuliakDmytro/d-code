@@ -27,6 +27,18 @@ It reads the same files the CLI writes and speaks the same headless stream-json
 protocol. Nothing is intercepted or reimplemented — when the app is closed, the CLI
 behaves exactly as before.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/mainpage.jpg" alt="Main window: session list, conversation, usage and limits">
+  <br><em>Sessions on the left, the conversation in the middle, limits and token accounting on the right.</em>
+</p>
+
+<p align="center">
+  <img src="screenshots/editor.jpg" alt="Editor view: file tree, code editor and the chat docked on the right">
+  <br><em>The editor with the file tree and the chat kept alongside it.</em>
+</p>
+
 ## Install
 
 Grab a build from [Releases](../../releases). You still need the
