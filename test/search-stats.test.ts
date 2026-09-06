@@ -3,6 +3,7 @@ import { searchTranscripts } from '../src/main/store/search'
 import { collectActivity } from '../src/main/store/stats'
 import { listChangedFiles } from '../src/main/store/file-history'
 import { scanAllSessions } from '../src/main/store/scanner'
+import { hasTranscripts } from './local-data'
 
 describe('searchTranscripts', () => {
   it('знаходить збіги по вмісту, а не по заголовках', async () => {
@@ -40,7 +41,7 @@ describe('searchTranscripts', () => {
 })
 
 describe('collectActivity', () => {
-  it('рахує дні, інструменти та проєкти', async () => {
+  it.skipIf(!hasTranscripts)('рахує дні, інструменти та проєкти', async () => {
     const stats = await collectActivity(30)
     console.log(`\nднів з активністю: ${stats.days.length}`)
     console.log('  ' + stats.days.map((d) => `${d.date.slice(5)}:${d.requests}`).join(' '))

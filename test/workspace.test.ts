@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { detectEditors, listSkills, listWorkspaces } from '../src/main/system/workspace'
+import { hasLocalClaudeData } from './local-data'
 
 describe('listWorkspaces', () => {
-  it('знаходить каталоги, у яких працював CLI, зі справжніми шляхами', async () => {
+  it.skipIf(!hasLocalClaudeData)('знаходить каталоги, у яких працював CLI, зі справжніми шляхами', async () => {
     const ws = await listWorkspaces()
     console.log(`\nробочих каталогів: ${ws.length}`)
     for (const w of ws) {

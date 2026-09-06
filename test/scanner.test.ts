@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { scanAllSessions, scanTranscript, emptyTotals, mergeTotals } from '../src/main/store/scanner'
 import { CLAUDE_CONFIG } from '../src/main/store/project-paths'
+import { hasClaudeConfig, hasTranscripts } from './local-data'
 
 interface ProjectStats {
   lastSessionId?: string
@@ -108,7 +109,7 @@ describe('scanAllSessions', () => {
    * CLI перезаписує підсумками останнього сегмента, тому наші цифри законно більші.
    * Додатково CLI враховує службові виклики haiku, яких у транскрипті немає.
    */
-  it('звіряється з ~/.claude.json (довідково)', async () => {
+  it.skipIf(!hasClaudeConfig)('звіряється з ~/.claude.json (довідково)', async () => {
     const config = JSON.parse(await readFile(CLAUDE_CONFIG, 'utf8')) as {
       projects?: Record<string, ProjectStats>
     }

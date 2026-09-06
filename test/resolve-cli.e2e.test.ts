@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { ClaudeRunner } from '../src/main/claude/runner'
 import { childEnv, resolveClaudePath, resolveShellPath } from '../src/main/claude/resolve-cli'
 import type { StreamMessage } from '../src/main/claude/protocol'
+import { hasClaudeBinary } from './local-data'
 
 const enabled = process.env.CLAUDE_UI_E2E === '1'
 
@@ -26,7 +27,7 @@ describe('запуск CLI з урізаним PATH', () => {
     process.env.PATH = originalPath
   })
 
-  it('знаходить claude, якого немає в PATH', async () => {
+  it.skipIf(!hasClaudeBinary)('знаходить claude, якого немає в PATH', async () => {
     const path = await resolveClaudePath()
     console.log('\nрезолв:', path)
 
