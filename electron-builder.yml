@@ -1,0 +1,47 @@
+appId: com.dmytro.dcode
+productName: D-code
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+
+# node-pty is a native module: its binary will not load from inside the asar.
+asarUnpack:
+  - node_modules/node-pty/**
+
+mac:
+  icon: build/icon.icns
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  # Unsigned: a personal tool needs neither a certificate nor notarisation.
+  # macOS will show a Gatekeeper warning on first launch.
+  identity: null
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  # .deb requires a maintainer field; the address here is a formality.
+  maintainer: Dmytro <noreply@users.noreply.github.com>
+  icon: build/icon.png
+  category: Development
+  synopsis: Desktop client for the Claude Code CLI
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]

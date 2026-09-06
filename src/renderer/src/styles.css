@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #0a0a0b;
+  --color-surface: #131316;
+  --color-surface-2: #1a1a1f;
+  --color-border: #26262c;
+  --color-text: #e7e7ea;
+  --color-muted: #8b8b96;
+  --color-accent: #c96442;
+  --color-accent-soft: #3a241d;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family:
+    ui-sans-serif, -apple-system, 'SF Pro Text', system-ui, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin scrollbars so panels do not lose width to them */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2e2e36;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3d3d47;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Drag handle between panels */
+.resize-separator {
+  background: var(--color-border);
+  width: 1px;
+  transition: background 120ms;
+}
+.resize-separator:hover,
+.resize-separator[data-dragging] {
+  background: var(--color-accent);
+}
+
+/* The same separator, for a vertical group */
+.resize-separator-h {
+  background: var(--color-border);
+  height: 1px;
+  transition: background 120ms;
+}
+.resize-separator-h:hover,
+.resize-separator-h[data-dragging] {
+  background: var(--color-accent);
+}
+
+/* Window drag region under the macOS traffic lights */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+.titlebar-drag button,
+.titlebar-drag input {
+  -webkit-app-region: no-drag;
+}

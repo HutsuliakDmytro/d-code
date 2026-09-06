@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node",
+      "vite/client"
+    ],
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "paths": {
+      "@/*": [
+        "./src/renderer/src/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ]
+    }
+  },
+  "include": [
+    "test/**/*.ts",
+    "vitest.config.ts",
+    "src/renderer/src/global.d.ts"
+  ]
+}

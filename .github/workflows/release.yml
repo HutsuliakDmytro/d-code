@@ -1,0 +1,85 @@
+name: Release
+
+# Builds installers on every platform and attaches them to a GitHub release.
+#
+# Each job runs on its native OS on purpose: node-pty is a native module and has
+# to be compiled where it will run. Cross-building from one machine produces
+# packages whose terminal tab is dead on arrival.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS
+            command: npx electron-builder --mac --publish never
+            artifacts: release/*.dmg
+          - os: ubuntu-latest
+            name: Linux
+            command: npx electron-builder --linux --publish never
+            artifacts: |
+              release/*.AppImage
+              release/*.deb
+          - os: windows-latest
+            name: Windows
+            command: npx electron-builder --win --publish never
+            artifacts: |
+              release/*.exe
+              release/*.zip
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Typecheck and tests run once, on Linux: they are platform-independent and
+      # repeating them three times only slows the release down.
+      - name: Check
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build
+        run: |
+          npx electron-vite build
+          ${{ matrix.command }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          draft: true

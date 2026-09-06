@@ -1,0 +1,38 @@
+appId: com.dmytro.dcode
+productName: D-code
+directories:
+  output: release
+  buildResources: build
+
+# Building Linux packages straight from macOS, without Docker.
+#
+# The cost is exactly one thing: node-pty does not go in. It is a native module
+# and cannot be compiled for Linux on a Mac. The app survives that — the module
+# load is wrapped in try/catch and the Terminal tab reports it as unavailable.
+#
+# What still works: chat, metrics, editor, git, tasks (plain spawn, not a pty),
+# search, debugging. What does not: the embedded terminal.
+#
+# For a complete package with a working terminal, build on Linux —
+# scripts/build-linux.sh does that in Docker.
+files:
+  - out/**
+  - package.json
+  - '!node_modules/node-pty/**'
+
+# Without this, electron-builder tries to rebuild node-pty for Linux and fails:
+# a Mac has nothing to build it with.
+npmRebuild: false
+
+linux:
+  # .deb requires a maintainer field; the address here is a formality.
+  maintainer: Dmytro <noreply@users.noreply.github.com>
+  icon: build/icon.png
+  category: Development
+  synopsis: Desktop client for the Claude Code CLI
+  executableName: d-code
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]

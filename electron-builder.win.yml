@@ -1,0 +1,29 @@
+appId: com.dmytro.dcode
+productName: D-code
+directories:
+  output: release
+  buildResources: build
+
+# Building a Windows package from macOS.
+#
+# Two limitations, both deliberate.
+#
+# 1. Zip only. An NSIS installer is produced by running NSIS itself, which is a
+#    Windows program — on a Mac it would have to run under Wine. A zip unpacks
+#    and runs with no installer, which is enough for a personal tool.
+#
+# 2. node-pty does not go in: a native Windows module cannot be built on a Mac.
+#    The Terminal tab reports this; everything else works.
+files:
+  - out/**
+  - package.json
+  - '!node_modules/node-pty/**'
+
+# Otherwise electron-builder tries to rebuild node-pty for Windows and fails.
+npmRebuild: false
+
+win:
+  icon: build/icon.png
+  target:
+    - target: zip
+      arch: [x64, arm64]
