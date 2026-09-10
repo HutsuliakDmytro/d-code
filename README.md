@@ -78,6 +78,9 @@ a reason, listed below the table.
 | **Open in IDE** | `/Applications` | `.desktop` files | Program Files |
 | **Limits history graph** | ✅ | ➖² | ✅³ |
 | **Desktop notifications** | ✅ | ✅ | ✅ |
+| Phone access, pairing, QR | ✅ | ✅ | ✅ |
+| **Tunnel: Cloudflare / own command** | ✅ | ✅ | ✅ |
+| **Tunnel: Pinggy over ssh** | ✅ | ✅ | ➖⁴ |
 
 ¹ `x-terminal-emulator`, `gnome-terminal`, `konsole`, `xfce4-terminal`, `alacritty`,
 `kitty`, `xterm` — the first one found wins.
@@ -87,6 +90,10 @@ does not exist on Linux. Current percentages are unaffected — they come from p
 the CLI directly.
 
 ³ Only if the Claude desktop app is installed and has run recently.
+
+⁴ Pinggy's anonymous tunnels want an empty ssh password, which is supplied with
+`SSH_ASKPASS=/usr/bin/true` — a path Windows does not have. Untested there, and
+expected to fail; the Cloudflare provider and a custom command both work.
 
 > **A note on prebuilt packages.** The Linux and Windows builds in `release/` that
 > were cross-built from macOS ship **without** the embedded terminal: `node-pty` is a
@@ -114,7 +121,7 @@ the CLI directly.
 | **Live model switching** | Model and permission mode change in a running conversation |
 | **Environment editing** | Add and remove MCP servers and hooks, each change naming the settings file it lands in |
 | **Export** | Markdown or a self-contained HTML page, with secrets, e-mail addresses and home paths stripped by default |
-| **Phone access** | Drive a running session from a phone — on the same network, or from anywhere through a Cloudflare tunnel: read the conversation, send messages, interrupt, answer permission prompts |
+| **Phone access** | Drive a running session from a phone: read the conversation as it streams, send, interrupt, answer permission prompts. On the local network, across a tailnet, or from anywhere through a tunnel — scanning the QR pairs the device outright |
 | **Two languages** | English and Ukrainian, switchable in settings |
 
 ## Architecture
@@ -126,6 +133,7 @@ src/main/metrics/    plan limits
 src/main/system/     workspaces, editors, git, terminals, platform differences
 src/main/lsp/        JSON-RPC client and language server manager
 src/main/debug/      Node debugging over CDP
+src/main/remote/     phone server, pairing, tunnels, QR encoder
 src/renderer/        React interface
 src/shared/          domain types and the IPC contract
 ```
