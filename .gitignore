@@ -22,3 +22,6 @@ Thumbs.db
 
 # Personal drafts
 LINKEDIN.md
+
+# TypeScript incremental build info
+*.tsbuildinfo
