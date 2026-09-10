@@ -107,10 +107,14 @@ the CLI directly.
 | **Language server** | Completion, hover, go-to-definition (`F12`), project-wide rename (`F2`) |
 | **Debugger** | Breakpoints, call stack, variables, expression evaluation |
 | **Git** | Stage, commit, push/pull, stashes, branch diffs, conflict resolution |
+| **Worktrees** | Create, check out and remove them; start a session in one, so several agents work on different branches without touching each other's files |
 | **Pull requests** | List, create and follow check status through `gh` |
 | **Checkpoints** | Roll files back to their state before any message — the CLI snapshots them |
 | **Activity** | Tokens per day, top tools with error counts, per-project breakdown, cache coverage |
 | **Live model switching** | Model and permission mode change in a running conversation |
+| **Environment editing** | Add and remove MCP servers and hooks, each change naming the settings file it lands in |
+| **Export** | Markdown or a self-contained HTML page, with secrets, e-mail addresses and home paths stripped by default |
+| **Phone access** | Drive a running session from a phone — on the same network, or from anywhere through a Cloudflare tunnel: read the conversation, send messages, interrupt, answer permission prompts |
 | **Two languages** | English and Ukrainian, switchable in settings |
 
 ## Architecture
@@ -211,6 +215,120 @@ npx electron-rebuild -f -w node-pty
 
 Without it the app does not crash — the Terminal tab simply reports the module as
 unavailable and shows this command. Tasks (`npm run`) need no pty and always work.
+
+## Phone access
+
+Settings → **Phone access** starts a small HTTP server so a session running on
+the computer can be driven from a phone on the same Wi-Fi: the conversation as it
+streams, sending messages, interrupting a turn, and answering permission prompts —
+which matters most, because a session left alone stalls the moment a tool needs a
+decision.
+
+The phone talks to the same conversation tabs as the desktop window, not a
+parallel set of its own. Two processes appending to one transcript would corrupt
+it, and a session you could no longer follow from the desktop after touching it
+on the phone would be worse than no remote access at all.
+
+**What this opens, stated plainly.** The server can make Claude Code run commands
+on your machine. It is therefore:
+
+- **off by default** and started only from the settings panel;
+- reachable only with a token the browser receives after entering a **six-digit
+  pairing code** shown in the app, valid ten minutes, with five wrong guesses per
+  address triggering a lockout and burning the code;
+- bound to the local network, with **no TLS**;
+- closed when the app quits.
+
+### From outside the local network
+
+Two ways, and the first is the better one.
+
+**Tailscale (recommended).** Install it on the computer and the phone and sign
+both into the same account. Nothing else to configure: the server already listens
+on every interface, so the tailnet address appears in the panel by itself, marked
+with a globe and offered ahead of the local one.
+
+Detection is a single range check — Tailscale hands every node an address out of
+`100.64.0.0/10`, the carrier-grade NAT block from RFC 6598, which nothing else a
+laptop holds is likely to use. No process to shell out to, nothing to parse, and
+it works however Tailscale was installed.
+
+This is the better option because it is not a tunnel at all: the machine stays
+off the open internet, the link is WireGuard end to end, and there is no public
+URL for anyone to find. When a tailnet address is present the panel says the
+Cloudflare switch is unnecessary, and the warning underneath softens to match
+what is actually exposed.
+
+**A tunnel, when the phone should need nothing at all.** The **Reachable from
+anywhere** switch starts a relay and shows the public `https://…` address it
+hands back. On the phone side this needs only a browser, which is the point.
+
+A tunnel rather than a forwarded port, for three reasons: it is an outbound
+connection, so no router configuration is needed and carrier-grade NAT is not an
+obstacle; the address is unguessable and disappears when you switch it off; and
+TLS is terminated for you, which port forwarding would not be. The cost is that
+traffic passes through somebody's relay — so the relay is named in the panel and
+chosen explicitly, never picked for you.
+
+| Provider | Needs installing | Notes |
+|---|---|---|
+| **Cloudflare** (default) | `cloudflared` | The most reliable, when it is reachable at all |
+| **Pinggy** | nothing — plain `ssh` | Rides port 443, which almost nothing blocks. Free tunnels last 60 minutes and the address changes each time |
+| **Own command** | whatever you name | Any command printing an `https://` address; write `{port}` where the local port belongs |
+
+More than one provider exists because any single service is a single point of
+failure. `trycloudflare.com` in particular is heavily abused for phishing and a
+number of ISPs filter it outright — the symptom is `cloudflared` failing on its
+very first HTTPS call to `api.trycloudflare.com` while the rest of the internet
+works fine. An app that hard-coded it would simply stop working for those users
+with no way out; Pinggy over `ssh` on port 443 gets through where it does not.
+
+When a tunnel fails the panel shows the provider's own last error lines rather
+than an exit code, because "code 1" tells nobody what to do.
+
+One implementation note, since it is not obvious: `ssh` reads a password from a
+terminal, never from stdin, so a subprocess with piped stdio can never answer
+the prompt. `SSH_ASKPASS=/usr/bin/true` with `SSH_ASKPASS_REQUIRE=force` supplies
+the empty password Pinggy's anonymous tunnels expect, without allocating a pty.
+
+### Scanning in
+
+The panel shows a QR code for each address it can offer, ordered by reach: the
+tunnel when one is up, then the tailnet, then the local network. The code carries
+the address *and* the pairing code, so scanning it opens the session already
+signed in. Opening the plain link instead still asks for the code by hand.
+
+A scan is not a second door: it runs through the same expiry, the same
+per-address lockout and the same global budget as typing. On success the browser
+is redirected to `/` without the query, so the pairing code does not linger in
+the address bar, in history, or in a screenshot shared later.
+
+The QR encoder is written out in `src/main/remote/qr.ts` rather than taken as a
+dependency — it is a pure function of one short string. Its output is checked
+module-for-module against a reference implementation in the tests, because a QR
+code that almost works is a QR code nobody can scan.
+
+Install `cloudflared` first (`brew install cloudflared`, or your distribution's
+package). The app detects it and explains itself if it is missing.
+
+**Pairing gets stronger when the tunnel comes up.** Six digits is fine on a home
+network, where an attacker has to already be on it; a public URL is a different
+problem. Turning the tunnel on reissues the code as ten characters from a
+32-symbol alphabet — around 50 bits — and the cookie is marked `Secure` once the
+request arrives over HTTPS. Two limits bound guessing, and they are deliberately
+separate: five wrong codes from one address earns a one-minute lockout and burns
+the code, while twenty wrong codes *in total* shut pairing down completely until
+you issue a new one in the app. The per-address lockout does not count toward the
+global budget, or a single address could lock you out of your own machine.
+
+Do not forward the port through a router — use the tunnel instead. Whichever way
+you reach it, treat the pairing code as the only thing between a stranger and a
+shell on your machine, and turn the tunnel off when you are done.
+
+The CLI's own `--remote-control` is a different thing and still available from the
+session menu: it links an *interactive* terminal session to your Claude account.
+It cannot be turned on for the headless process this app drives (see finding 9
+above), which is why phone access is implemented here rather than delegated to it.
 
 ## License
 

@@ -582,5 +582,117 @@ export const uk: Record<string, string> = {
   'At most {max} attachments': 'Максимум {max} вкладень',
   'Only {count} added: the limit is {max}': 'Додано лише {count}: більше {max} не можна',
   'Turn interrupted': 'Хід перервано',
-  Language: 'Мова'
+  Language: 'Мова',
+
+  // Export
+  'Export session…': 'Експортувати сесію…',
+  'Export session': 'Експорт сесії',
+  Export: 'Експортувати',
+  'For a pull request, an issue or a gist.': 'Для пул-реквесту, ішʼю чи gist.',
+  'Self-contained page, opens anywhere.': 'Самодостатня сторінка, відкриється будь-де.',
+  'Redact secrets and paths': 'Прибрати секрети та шляхи',
+  'API keys, tokens, e-mail addresses; your home directory becomes ~.':
+    'Ключі API, токени, адреси пошти; домашня тека стає ~.',
+  'Include tool calls': 'Додати виклики інструментів',
+  'Folded away, but they make the document much longer.':
+    'Вони згорнуті, але сильно збільшують документ.',
+  'Include thinking': 'Додати роздуми',
+  'Reasoning blocks, when the transcript has them.':
+    'Блоки міркувань, якщо вони є в транскрипті.',
+  'Without redaction the file keeps absolute paths and anything secret a tool printed.':
+    'Без очищення у файлі лишаться абсолютні шляхи й усе секретне, що вивів інструмент.',
+  'Redaction on': 'Очищення увімкнено',
+
+  // Worktrees
+  Worktrees: 'Робочі дерева',
+  'Worktrees — run agents on several branches at once':
+    'Робочі дерева — кілька агентів на різних гілках водночас',
+  'No worktrees — this directory is not a git repository.':
+    'Робочих дерев немає — ця тека не є git-репозиторієм.',
+  detached: 'відірваний HEAD',
+  'main tree': 'основне дерево',
+  'directory missing': 'теки немає',
+  'Start a session here': 'Почати тут сесію',
+  'Open in the file tree': 'Відкрити у дереві файлів',
+  'The main worktree cannot be removed': 'Основне дерево видалити не можна',
+  'Remove worktree': 'Видалити дерево',
+  'Remove {path}?': 'Видалити {path}?',
+  'Discards uncommitted changes in that directory':
+    'Відкидає незакоммічені зміни в тій теці',
+  'Remove and discard changes': 'Видалити разом зі змінами',
+  'Branch name': 'Назва гілки',
+  'Check out': 'Переключитись',
+  'Directory for the worktree': 'Тека для робочого дерева',
+  'This branch is already checked out in another worktree.':
+    'Ця гілка вже вивантажена в іншому робочому дереві.',
+  'This branch exists — it will be checked out into the new directory.':
+    'Така гілка вже є — її буде вивантажено в нову теку.',
+  'A sibling directory, so the worktree stays out of the repository’s own listings.':
+    'Тека-сусідка, щоб дерево не потрапляло у власні лістинги репозиторію.',
+
+  // Environment editing
+  'Configure MCP servers and hooks': 'Налаштувати MCP-сервери та хуки',
+  everywhere: 'усюди',
+  'this project': 'цей проєкт',
+  'this project, only me': 'цей проєкт, лише я',
+  '{path} is not valid JSON — fix it by hand before editing here.':
+    '{path} не є коректним JSON — виправте вручну, перш ніж редагувати тут.',
+  'Press refresh to check which servers are configured and reachable.':
+    'Натисніть оновлення, щоб перевірити, які сервери налаштовані й доступні.',
+  'Remove server': 'Видалити сервер',
+  'No hooks configured.': 'Хуків не налаштовано.',
+  'Remove hook': 'Видалити хук',
+  'Command, e.g. npx -y @modelcontextprotocol/server-github':
+    'Команда, напр. npx -y @modelcontextprotocol/server-github',
+  'URL of the server': 'URL сервера',
+  'Matcher, e.g. Edit|Write': 'Фільтр, напр. Edit|Write',
+  'Shell command to run': 'Команда оболонки для запуску',
+  'none yet': 'ще немає',
+  Add: 'Додати',
+
+  // Phone access
+  'Phone access': 'Доступ із телефона',
+  'Let a phone drive this session': 'Дозволити керувати сесією з телефона',
+  'Starts a small server on your local network. Off by default.':
+    'Піднімає невеликий сервер у локальній мережі. Типово вимкнено.',
+  '{count} connected': 'підключено: {count}',
+  'Or open by hand': 'Або відкрийте вручну',
+  '…then enter this code': '…і введіть цей код',
+  'Scan to open the session — no code needed.':
+    'Скануйте — сесія відкриється одразу, код вводити не треба.',
+  anywhere: 'звідусіль',
+  tailnet: 'tailnet',
+  'this network': 'ця мережа',
+  'No network address — is Wi-Fi on?': 'Немає мережевої адреси — чи ввімкнено Wi-Fi?',
+  'New code': 'Новий код',
+  expired: 'протерміновано',
+  copied: 'скопійовано',
+  Copy: 'Копіювати',
+  'Anyone on this network who has the code can make Claude run commands here. The connection is not encrypted — keep it to networks you trust, and never forward the port.':
+    'Будь-хто в цій мережі, хто має код, зможе запускати тут команди через Claude. Зʼєднання не шифроване — тримайте його лише в мережах, яким довіряєте, і ніколи не пробрасуйте порт назовні.',
+  'Too many wrong codes — pairing is off until you issue a new one.':
+    'Забагато невірних кодів — парування вимкнено, поки не видасте новий.',
+
+  // Tunnel
+  'Reachable from anywhere': 'Доступ звідусіль',
+  'not installed': 'не встановлено',
+  'own command': 'своя команда',
+  'Nothing to install on the phone — a browser is enough. Traffic passes through Cloudflare, and some ISPs block this one outright.':
+    'На телефон ставити нічого не треба — досить браузера. Трафік іде через Cloudflare, і частина провайдерів блокує цей варіант повністю.',
+  'Needs cloudflared: brew install cloudflared, then reopen these settings.':
+    'Потрібен cloudflared: brew install cloudflared, а тоді відкрийте ці налаштування знову.',
+  'Rides plain ssh over port 443, which almost nothing blocks — nothing to install on either end. Free tunnels last 60 minutes and the address changes each time.':
+    'Працює через звичайний ssh на порту 443, який майже ніде не ріжуть — ставити не треба нічого з жодного боку. Безкоштовний тунель живе 60 хвилин, і адреса щоразу нова.',
+  'Any command that prints an https address. Use {port} where the local port belongs.':
+    'Будь-яка команда, що друкує https-адресу. Пишіть {port} там, де має бути локальний порт.',
+  'This address is on the open internet. The code is the only thing between a stranger and a shell on this machine — turn the tunnel off when you are done.':
+    'Ця адреса у відкритому інтернеті. Код — єдине, що відділяє стороннього від шелу на цій машині; вимикайте тунель, коли закінчите.',
+
+  // Tailscale
+  'The address marked with a globe is on your tailnet — it works from mobile data too, without exposing anything to the internet.':
+    'Адреса з глобусом — це ваш tailnet: працює й з мобільного інтернету, нічого не виставляючи назовні.',
+  'Not needed — your tailnet address above already reaches this machine from anywhere, and keeps it off the open internet.':
+    'Не потрібен — адреса tailnet вище вже дістає цю машину звідусіль, не виставляючи її у відкритий інтернет.',
+  'Only devices signed into your tailnet can reach this, over an encrypted link. Anyone with the code can still make Claude run commands here.':
+    'Дістатися сюди можуть лише пристрої, що ввійшли у ваш tailnet, і лише шифрованим каналом. Але той, хто має код, усе одно зможе запускати тут команди через Claude.'
 }

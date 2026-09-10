@@ -14,7 +14,10 @@ import {
   type PermissionReply,
   type PermissionRequest,
   type ProjectGroup,
-  type TranscriptPayload
+  type RemoteState,
+  type TranscriptPayload,
+  type TunnelProvider,
+  type TunnelState
 } from '@shared/ipc'
 import type { Attachment, PermissionMode, RateLimitEventInfo } from '@shared/types'
 import { CLAUDE_HOME, PROJECTS_DIR } from './store/project-paths'
@@ -59,7 +62,30 @@ const gitRemote = new GitRemoteRunner()
 import { readPromptHistory } from './system/prompt-history'
 import { listProjectFiles } from './system/file-index'
 import { listAgentTypes, listHooks, listMcpServers, listPlugins } from './system/extensions'
-import { getNote, saveNote, toggleBookmark, toMarkdown } from './system/session-notes'
+import { getNote, saveNote, toggleBookmark } from './system/session-notes'
+import { renderExport, type ExportOptions } from './system/session-export'
+import {
+  addHook,
+  addMcpServer,
+  removeHook,
+  removeMcpServer,
+  settingsPath,
+  settingsScopes,
+  type HookInput,
+  type McpServerInput,
+  type SettingsScope
+} from './system/settings-edit'
+import { RemoteServer } from './remote/server'
+import { TunnelRunner } from './remote/tunnel'
+import { qrSvg, qrTargets } from './remote/qr'
+import { ChatPoolBridge, forwardToRemote } from './remote/bridge'
+import {
+  addWorktree,
+  listWorktrees,
+  pruneWorktrees,
+  removeWorktree,
+  type AddWorktreeInput
+} from './system/worktree'
 import { listScripts, TaskRunner, type TaskChunk, type TaskState } from './system/tasks'
 import { listCheckpoints, restoreCheckpoint, type CheckpointFile } from './store/checkpoints'
 import { compareSessions } from './store/session-compare'
@@ -151,6 +177,17 @@ let mainWindow: BrowserWindow | null = null
 let watcher: FSWatcher | null = null
 const rateLimits = new RateLimitTracker()
 const chat = new ChatPool()
+const remoteBridge = new ChatPoolBridge(chat)
+const remote = new RemoteServer(remoteBridge)
+const tunnel = new TunnelRunner()
+
+/**
+ * The server and the tunnel are separate pieces with one shared story: whether
+ * a phone can reach this machine, and how. The renderer sees them merged.
+ */
+function remoteState(): RemoteState {
+  return { ...remote.getState(), tunnel: tunnel.getState() }
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -324,7 +361,14 @@ function registerIpc(): void {
       chat.send(a.tabId, a.text, a.attachments)
   )
   ipcMain.handle(INVOKE.chatInterrupt, (_e, tabId: string) => chat.interrupt(tabId))
-  ipcMain.handle(INVOKE.chatClose, (_e, tabId: string) => chat.close(tabId))
+  ipcMain.handle(INVOKE.chatClose, async (_e, tabId: string) => {
+    await chat.close(tabId)
+    // Otherwise the phone keeps offering a tab that no longer exists, and its
+    // cached conversation stays in memory for the life of the app.
+    remoteBridge.clearPermission(tabId)
+    remote.forget(tabId)
+    remote.pushTabs()
+  })
   ipcMain.handle(
     INVOKE.chatPermissionReply,
     (_e, a: { tabId: string; requestId: string; reply: PermissionReply }) =>
@@ -420,6 +464,102 @@ function registerIpc(): void {
   ipcMain.handle(INVOKE.hooks, (_e, projectRoot?: string) => listHooks(projectRoot))
   ipcMain.handle(INVOKE.plugins, () => listPlugins())
   ipcMain.handle(INVOKE.agentTypes, () => listAgentTypes())
+
+  ipcMain.handle(INVOKE.remoteStatus, async () => {
+    // The binary can be installed while the app is open, so this is re-checked
+    // rather than probed once at startup.
+    await tunnel.checkAvailable()
+    return remoteState()
+  })
+  ipcMain.handle(INVOKE.remoteStart, async (_e, port?: number) => {
+    await remote.start(port)
+    return remoteState()
+  })
+  ipcMain.handle(INVOKE.remoteStop, async () => {
+    await tunnel.stop()
+    await remote.stop()
+    return remoteState()
+  })
+  ipcMain.handle(INVOKE.remoteNewCode, () => {
+    remote.newPairingCode()
+    return remoteState()
+  })
+
+  ipcMain.handle(
+    INVOKE.remoteTunnelStart,
+    async (_e, a: { provider: TunnelProvider; custom?: string }) => {
+      const server = remote.getState()
+      if (!server.running || !server.port) {
+        return { ...remoteState(), error: 'Turn on phone access first' }
+      }
+      await tunnel.start(server.port, a.provider, a.custom)
+      return remoteState()
+    }
+  )
+  ipcMain.handle(INVOKE.remoteQrCodes, () => {
+    const server = remote.getState()
+    if (!server.running || server.pairingLocked) return []
+
+    return qrTargets(server.urls, tunnel.getState().url).flatMap(({ plainUrl, label }) => {
+      const url = remote.pairingUrl(plainUrl)
+      if (!url) return []
+      try {
+        return [{ url, plainUrl, label, svg: qrSvg(url) }]
+      } catch {
+        // An address too long to encode is not worth taking the panel down for.
+        return []
+      }
+    })
+  })
+
+  ipcMain.handle(INVOKE.remoteTunnelStop, async () => {
+    await tunnel.stop()
+    return remoteState()
+  })
+
+  ipcMain.handle(INVOKE.settingsScopes, (_e, projectRoot?: string) => settingsScopes(projectRoot))
+  ipcMain.handle(
+    INVOKE.addHook,
+    (_e, a: { scope: SettingsScope; input: HookInput; projectRoot?: string }) =>
+      addHook(a.scope, a.input, a.projectRoot)
+  )
+  ipcMain.handle(
+    INVOKE.removeHook,
+    (_e, a: { scope: SettingsScope; input: HookInput; projectRoot?: string }) =>
+      removeHook(a.scope, a.input, a.projectRoot)
+  )
+  ipcMain.handle(INVOKE.addMcpServer, (_e, input: McpServerInput) => addMcpServer(input))
+  ipcMain.handle(INVOKE.removeMcpServer, (_e, a: { name: string; scope?: SettingsScope }) =>
+    removeMcpServer(a.name, a.scope)
+  )
+  ipcMain.handle(
+    INVOKE.openSettingsFile,
+    async (_e, a: { scope: SettingsScope; projectRoot?: string }) => {
+      try {
+        const path = settingsPath(a.scope, a.projectRoot)
+        // An empty string back from Electron means it opened; anything else is the error.
+        const error = await shell.openPath(path)
+        return error ? { ok: false, error } : { ok: true, path }
+      } catch (err) {
+        return { ok: false, error: (err as Error).message }
+      }
+    }
+  )
+
+  ipcMain.handle(INVOKE.listWorktrees, async (_e, root: string) => {
+    const [trees, workspaces] = await Promise.all([listWorktrees(root), listWorkspaces()])
+    const counts = new Map(workspaces.map((w) => [w.path, w.sessionCount]))
+    return trees.map((t) => ({ ...t, sessionCount: counts.get(t.path) ?? 0 }))
+  })
+  ipcMain.handle(INVOKE.addWorktree, (_e, a: { root: string; input: AddWorktreeInput }) =>
+    addWorktree(a.root, a.input)
+  )
+  ipcMain.handle(
+    INVOKE.removeWorktree,
+    (_e, a: { root: string; path: string; force: boolean }) =>
+      removeWorktree(a.root, a.path, a.force)
+  )
+  ipcMain.handle(INVOKE.pruneWorktrees, (_e, root: string) => pruneWorktrees(root))
 
   ipcMain.handle(INVOKE.listCheckpoints, (_e, transcriptPath: string) =>
     listCheckpoints(transcriptPath)
@@ -548,22 +688,34 @@ function registerIpc(): void {
 
   ipcMain.handle(
     INVOKE.exportSession,
-    async (_e, a: { filePath: string; projectPath: string; encodedDir: string }) => {
+    async (
+      _e,
+      a: {
+        filePath: string
+        projectPath: string
+        encodedDir: string
+        options?: Partial<ExportOptions>
+      }
+    ) => {
       if (!mainWindow) return undefined
       const payload = await loadTranscript(a)
       const note = await getNote(payload.meta.sessionId)
-      const markdown = toMarkdown(payload.meta, payload.messages, note)
+      const format = a.options?.format ?? 'md'
+      const document = renderExport(payload.meta, payload.messages, note, a.options)
 
       // Name taken from the session title, stripped of filesystem-hostile characters.
       const safeName = payload.meta.title.replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60)
       const result = await dialog.showSaveDialog(mainWindow, {
         title: 'Export session',
-        defaultPath: `${safeName || payload.meta.sessionId}.md`,
-        filters: [{ name: 'Markdown', extensions: ['md'] }]
+        defaultPath: `${safeName || payload.meta.sessionId}.${format}`,
+        filters:
+          format === 'html'
+            ? [{ name: 'HTML', extensions: ['html'] }]
+            : [{ name: 'Markdown', extensions: ['md'] }]
       })
       if (result.canceled || !result.filePath) return undefined
 
-      await writeFile(result.filePath, markdown, 'utf8')
+      await writeFile(result.filePath, document, 'utf8')
       return result.filePath
     }
   )
@@ -715,14 +867,20 @@ function wireChatEvents(): void {
   const send = (channel: string, payload: unknown): void => {
     mainWindow?.webContents.send(channel, payload)
   }
-  chat.on('event', (payload: { tabId: string; event: ChatStreamEvent }) =>
+  chat.on('event', (payload: { tabId: string; event: ChatStreamEvent }) => {
     send(EVENT.chatEvent, payload)
-  )
-  chat.on('state', (payload: { tabId: string; state: ChatState }) =>
+    forwardToRemote(remote, remoteBridge, payload.tabId, payload.event)
+  })
+  chat.on('state', (payload: { tabId: string; state: ChatState }) => {
     send(EVENT.chatState, payload)
-  )
+    remote.pushTabs()
+  })
   chat.on('permission', (payload: { tabId: string; request: PermissionRequest }) => {
     send(EVENT.chatPermission, payload)
+    // The phone has to be able to answer this too, or a session left running
+    // stalls the moment a tool needs a decision.
+    remoteBridge.notePermission(payload.tabId, payload.request)
+    remote.pushPermission(payload.tabId, payload.request)
     // The CLI process is blocked waiting for a decision — that needs to be known now.
     notifyIfHidden('Permission needed', `Claude wants to run ${payload.request.toolName}`)
   })
@@ -745,6 +903,14 @@ function wireChatEvents(): void {
   )
   // Stream limits add an exact reset time to the percentages from plan-usage-history.json.
   chat.on('rateLimit', (info: RateLimitEventInfo) => rateLimits.applyEvent(info))
+
+  remote.on('state', () => send(EVENT.remoteState, remoteState()))
+  tunnel.on('state', (state: TunnelState) => {
+    // A public address changes what counts as a safe pairing code, so the
+    // server is told before the renderer hears about it.
+    remote.setPublic(state.status === 'up')
+    send(EVENT.remoteState, remoteState())
+  })
 
   terminals.on('data', (chunk: TerminalChunk) => send(EVENT.termData, chunk))
   terminals.on('exit', (info: TerminalInfo) => send(EVENT.termExit, info))
@@ -811,4 +977,8 @@ app.on('before-quit', () => {
   diagnostics.stop()
   void lsp.stopAll()
   void debugSession.stop()
+  // The listening socket and the tunnel outlive the window otherwise, and the
+  // app would leave a way into this machine open after it is gone.
+  void tunnel.stop()
+  void remote.stop()
 })

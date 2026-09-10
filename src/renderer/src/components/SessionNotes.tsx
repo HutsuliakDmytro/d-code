@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, NotebookPen, Check } from 'lucide-react'
 import { useAppStore } from '../store/app-store'
 import { useTranslate } from '../i18n'
+import ExportDialog from './ExportDialog'
 
-/** Session notes and Markdown export of the conversation. */
+/** Session notes, and the entry point to exporting the conversation. */
 export default function SessionNotes(): React.JSX.Element | null {
   const t = useTranslate()
   const selected = useAppStore((s) => s.selected)
   const [text, setText] = useState('')
   const [saved, setSaved] = useState(false)
-  const [exported, setExported] = useState<string>()
+  const [exporting, setExporting] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(null)
 
   const sessionId = selected?.meta.sessionId
@@ -37,23 +38,7 @@ export default function SessionNotes(): React.JSX.Element | null {
     // text is harmless, so no extra flag is warranted here.
   }, [text, sessionId])
 
-  useEffect(() => {
-    if (!exported) return
-    const timer = setTimeout(() => setExported(undefined), 4000)
-    return () => clearTimeout(timer)
-  }, [exported])
-
   if (!selected) return null
-
-  async function exportSession(): Promise<void> {
-    if (!selected) return
-    const path = await window.claudeUI.exportSession(
-      selected.meta.filePath,
-      selected.meta.projectPath,
-      selected.meta.encodedDir
-    )
-    if (path) setExported(path.split('/').at(-1))
-  }
 
   return (
     <section className="pt-1 border-t border-[var(--color-border)]">
@@ -63,8 +48,8 @@ export default function SessionNotes(): React.JSX.Element | null {
         {t('Notes')}
         {saved && <Check size={10} className="text-emerald-400" />}
         <button
-          onClick={() => void exportSession()}
-          title={t('Export session to Markdown')}
+          onClick={() => setExporting(true)}
+          title={t('Export session…')}
           className="ml-auto p-0.5 rounded hover:bg-[var(--color-surface-2)]
                      hover:text-[var(--color-text)] transition-colors"
         >
@@ -82,9 +67,7 @@ export default function SessionNotes(): React.JSX.Element | null {
                    focus:border-[var(--color-accent)] placeholder:text-[var(--color-muted)]"
       />
 
-      {exported && (
-        <p className="mt-1 text-[10px] text-emerald-400 truncate">{t('Saved')}: {exported}</p>
-      )}
+      <ExportDialog open={exporting} onClose={() => setExporting(false)} />
     </section>
   )
 }

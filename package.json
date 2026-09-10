@@ -1,6 +1,6 @@
 {
   "name": "d-code",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Unofficial desktop client for the Claude Code CLI",
   "homepage": "https://github.com/HutsuliakDmytro/d-code",
   "main": "./out/main/index.js",
@@ -21,6 +21,7 @@
     "@electron/rebuild": "^4.2.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.2.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^5.2.0",
@@ -28,6 +29,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "lsp-typescript": "npm:typescript@^5.9.3",
+    "qrcode": "^1.5.4",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "typescript-language-server": "^6.0.0",

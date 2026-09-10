@@ -51,7 +51,8 @@ export const EVENT = {
   gitRemoteProgress: 'git:remote-progress',
   termData: 'term:data',
   termExit: 'term:exit',
-  debugState: 'debug:state'
+  debugState: 'debug:state',
+  remoteState: 'remote:state'
 } as const
 
 /** renderer → main channels (requests). */
@@ -174,7 +175,24 @@ export const INVOKE = {
   debugStep: 'debug:step',
   debugScopes: 'debug:scopes',
   debugVariables: 'debug:variables',
-  debugEvaluate: 'debug:evaluate'
+  debugEvaluate: 'debug:evaluate',
+  listWorktrees: 'worktree:list',
+  addWorktree: 'worktree:add',
+  removeWorktree: 'worktree:remove',
+  pruneWorktrees: 'worktree:prune',
+  settingsScopes: 'settings:scopes',
+  addHook: 'settings:add-hook',
+  removeHook: 'settings:remove-hook',
+  addMcpServer: 'settings:add-mcp',
+  removeMcpServer: 'settings:remove-mcp',
+  openSettingsFile: 'settings:open',
+  remoteStatus: 'remote:status',
+  remoteStart: 'remote:start',
+  remoteStop: 'remote:stop',
+  remoteNewCode: 'remote:new-code',
+  remoteTunnelStart: 'remote:tunnel-start',
+  remoteTunnelStop: 'remote:tunnel-stop',
+  remoteQrCodes: 'remote:qr'
 } as const
 
 export interface CompletionItem {
@@ -459,6 +477,16 @@ export interface SessionNote {
   updatedAt: number
 }
 
+export type ExportFormat = 'md' | 'html'
+
+export interface ExportOptions {
+  format: ExportFormat
+  /** Strip secrets, home paths and addresses before writing the file. */
+  redact: boolean
+  includeTools: boolean
+  includeThinking: boolean
+}
+
 // ─── Environment extensions ──────────────────────────────────────────────────
 
 export interface McpServer {
@@ -479,6 +507,137 @@ export interface PluginEntry {
   name: string
   source?: string
   skills: number
+}
+
+// ─── Remote access ───────────────────────────────────────────────────────────
+
+export type TunnelStatus = 'off' | 'starting' | 'up' | 'error'
+
+/**
+ * Who relays the traffic.
+ *
+ * More than one exists because any single service is a single point of
+ * failure: some ISPs filter `trycloudflare.com` outright, and `pinggy` rides
+ * plain `ssh` over port 443, which almost nothing blocks.
+ */
+export type TunnelProvider = 'cloudflare' | 'pinggy' | 'custom'
+
+export interface TunnelState {
+  status: TunnelStatus
+  /** Public https address, once the tunnel provider has assigned one. */
+  url?: string
+  error?: string
+  provider: TunnelProvider
+  /** Providers whose command is present on this machine. */
+  available: TunnelProvider[]
+  /** Minutes the provider grants before dropping the tunnel, when it says so. */
+  sessionMinutes?: number
+}
+
+/**
+ * How far an address reaches.
+ *
+ * `tailscale` is an address on the user's own tailnet — it keeps working from
+ * mobile data anywhere, without exposing anything to the open internet.
+ * `tunnel` is a public address from a relay. `lan` stops at the front door.
+ */
+export type RemoteReach = 'lan' | 'tailscale' | 'tunnel'
+
+/** An address the phone can be pointed at. */
+export interface RemoteAddress {
+  url: string
+  kind: 'lan' | 'tailscale'
+}
+
+/** A scannable entry point: the address and the QR that carries it. */
+export interface RemoteQr {
+  /** Where the QR points, pairing code included. */
+  url: string
+  /** The plain address, for typing by hand. */
+  plainUrl: string
+  label: RemoteReach
+  /** Inline SVG of the symbol. */
+  svg: string
+}
+
+export interface RemoteState {
+  running: boolean
+  port?: number
+  /** Addresses the phone can be pointed at, tailnet ones first. */
+  urls: RemoteAddress[]
+  /** Typed once on the phone. Longer while the tunnel is up. */
+  pairingCode?: string
+  pairingExpiresAt?: number
+  /** Phones currently holding an open stream. */
+  clients: number
+  error?: string
+  /** True once the server is reachable from outside the local network. */
+  isPublic: boolean
+  /** Set after too many wrong codes; a new one has to be issued by hand. */
+  pairingLocked: boolean
+  tunnel: TunnelState
+}
+
+// ─── Worktrees ───────────────────────────────────────────────────────────────
+
+export interface Worktree {
+  path: string
+  branch?: string
+  head?: string
+  /** The original checkout. It cannot be removed. */
+  isMain: boolean
+  locked: boolean
+  lockReason?: string
+  /** Git considers the directory gone. */
+  prunable: boolean
+  /** Sessions already recorded for this directory. */
+  sessionCount?: number
+}
+
+export interface AddWorktreeInput {
+  path: string
+  branch: string
+  createBranch: boolean
+  startPoint?: string
+}
+
+export interface WorktreeResult {
+  ok: boolean
+  error?: string
+  path?: string
+}
+
+// ─── Settings editing ────────────────────────────────────────────────────────
+
+export type SettingsScope = 'user' | 'project' | 'local'
+
+export interface ScopeInfo {
+  scope: SettingsScope
+  path: string
+  exists: boolean
+  /** Present when the file is not valid JSON, in which case editing is refused. */
+  error?: string
+}
+
+export interface HookInput {
+  event: string
+  matcher?: string
+  command: string
+}
+
+export interface McpServerInput {
+  name: string
+  transport: 'stdio' | 'sse' | 'http'
+  /** A command line for stdio, a URL otherwise. */
+  target: string
+  scope: SettingsScope
+  env?: string[]
+}
+
+export interface EditResult {
+  ok: boolean
+  error?: string
+  path?: string
 }
 
 export interface AgentType {
@@ -792,12 +951,50 @@ export interface ClaudeUIApi {
   listPlugins(): Promise<PluginEntry[]>
   listAgentTypes(): Promise<AgentType[]>
 
+  /** Whether the phone-facing server is up, and how to reach it. */
+  remoteStatus(): Promise<RemoteState>
+  /** Starts the server. It binds to the local network, so it is opt-in. */
+  remoteStart(port?: number): Promise<RemoteState>
+  remoteStop(): Promise<RemoteState>
+  /** Issues a new pairing code and invalidates the old one. */
+  remoteNewCode(): Promise<RemoteState>
+  /** Publishes the server through a Cloudflare tunnel, reachable from anywhere. */
+  /** `custom` is only meaningful together with a command line to run. */
+  remoteTunnelStart(provider: TunnelProvider, custom?: string): Promise<RemoteState>
+  remoteTunnelStop(): Promise<RemoteState>
+  /** QR codes for every reachable address. Scanning one pairs the device. */
+  remoteQrCodes(): Promise<RemoteQr[]>
+  onRemoteState(fn: (state: RemoteState) => void): () => void
+
+  /** State of the three settings files, so the UI can say where a change lands. */
+  settingsScopes(projectRoot?: string): Promise<ScopeInfo[]>
+  addHook(scope: SettingsScope, input: HookInput, projectRoot?: string): Promise<EditResult>
+  removeHook(scope: SettingsScope, input: HookInput, projectRoot?: string): Promise<EditResult>
+  /** Registers an MCP server through `claude mcp add`. */
+  addMcpServer(input: McpServerInput): Promise<EditResult>
+  /** Without a scope the three settings files are tried in the CLI's own order. */
+  removeMcpServer(name: string, scope?: SettingsScope): Promise<EditResult>
+  /** Opens a settings file in the configured editor. */
+  openSettingsFile(scope: SettingsScope, projectRoot?: string): Promise<EditResult>
+
+  /** Worktrees of the repository, newest information each call. */
+  listWorktrees(root: string): Promise<Worktree[]>
+  addWorktree(root: string, input: AddWorktreeInput): Promise<WorktreeResult>
+  /** Without `force` git refuses to drop a tree with uncommitted changes. */
+  removeWorktree(root: string, path: string, force: boolean): Promise<WorktreeResult>
+  pruneWorktrees(root: string): Promise<WorktreeResult>
+
   getNote(sessionId: string): Promise<SessionNote>
   saveNote(sessionId: string, text: string): Promise<void>
   /** Toggles a bookmark on a message and returns the new list. */
   toggleBookmark(sessionId: string, messageUuid: string): Promise<string[]>
-  /** Saves the session as Markdown via a system dialog. Returns a path or undefined. */
-  exportSession(filePath: string, projectPath: string, encodedDir: string): Promise<string | undefined>
+  /** Saves the session via a system dialog. Returns a path, or undefined when cancelled. */
+  exportSession(
+    filePath: string,
+    projectPath: string,
+    encodedDir: string,
+    options?: Partial<ExportOptions>
+  ): Promise<string | undefined>
 
   listScripts(root: string): Promise<ScriptEntry[]>
   startTask(root: string, script: string): Promise<TaskState>

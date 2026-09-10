@@ -89,6 +89,16 @@ export class ChatPool extends EventEmitter {
     await Promise.all([...this.tabs.keys()].map((id) => this.close(id)))
   }
 
+  /**
+   * Every tab with its state.
+   *
+   * Titles live in the renderer, so callers outside it (remote access) have to
+   * make do with the state — which is enough, since it carries the directory.
+   */
+  listTabs(): Array<{ tabId: string; state: ChatState }> {
+    return [...this.tabs.entries()].map(([tabId, chat]) => ({ tabId, state: chat.getState() }))
+  }
+
   /** How many conversations currently hold a live process. */
   activeCount(): number {
     let count = 0

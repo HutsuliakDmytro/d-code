@@ -10,6 +10,7 @@ import { useChatStore } from '../store/chat-store'
 import { useWorkspaceStore } from '../store/workspace-store'
 import type { PermissionMode } from '@shared/types'
 import { LANGUAGE_NAMES, useLanguageStore, useTranslate, type Language } from '../i18n'
+import RemoteAccess from './RemoteAccess'
 
 const selectClass =
   'w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md ' +
@@ -159,6 +160,8 @@ export default function SettingsSection(): React.JSX.Element {
           {t('Model and reasoning effort apply to the next conversation — they are process arguments and are already fixed. Permission mode switches immediately.')}
         </p>
       )}
+
+      <RemoteAccess />
     </section>
   )
 }

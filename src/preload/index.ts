@@ -11,7 +11,8 @@ import {
   type TerminalChunk,
   type TerminalInfo,
   type DiagnosticsState,
-  type DebugState
+  type DebugState,
+  type RemoteState
 } from '@shared/ipc'
 import type { RateLimitState } from '@shared/types'
 
@@ -81,12 +82,42 @@ const api: ClaudeUIApi = {
   listHooks: (projectRoot) => ipcRenderer.invoke(INVOKE.hooks, projectRoot),
   listPlugins: () => ipcRenderer.invoke(INVOKE.plugins),
   listAgentTypes: () => ipcRenderer.invoke(INVOKE.agentTypes),
+
+  remoteStatus: () => ipcRenderer.invoke(INVOKE.remoteStatus),
+  remoteStart: (port) => ipcRenderer.invoke(INVOKE.remoteStart, port),
+  remoteStop: () => ipcRenderer.invoke(INVOKE.remoteStop),
+  remoteNewCode: () => ipcRenderer.invoke(INVOKE.remoteNewCode),
+  remoteTunnelStart: (provider, custom) =>
+    ipcRenderer.invoke(INVOKE.remoteTunnelStart, { provider, custom }),
+  remoteTunnelStop: () => ipcRenderer.invoke(INVOKE.remoteTunnelStop),
+  remoteQrCodes: () => ipcRenderer.invoke(INVOKE.remoteQrCodes),
+  onRemoteState(fn) {
+    const handler = (_e: unknown, state: RemoteState): void => fn(state)
+    ipcRenderer.on(EVENT.remoteState, handler)
+    return () => ipcRenderer.off(EVENT.remoteState, handler)
+  },
+
+  settingsScopes: (projectRoot) => ipcRenderer.invoke(INVOKE.settingsScopes, projectRoot),
+  addHook: (scope, input, projectRoot) =>
+    ipcRenderer.invoke(INVOKE.addHook, { scope, input, projectRoot }),
+  removeHook: (scope, input, projectRoot) =>
+    ipcRenderer.invoke(INVOKE.removeHook, { scope, input, projectRoot }),
+  addMcpServer: (input) => ipcRenderer.invoke(INVOKE.addMcpServer, input),
+  removeMcpServer: (name, scope) => ipcRenderer.invoke(INVOKE.removeMcpServer, { name, scope }),
+  openSettingsFile: (scope, projectRoot) =>
+    ipcRenderer.invoke(INVOKE.openSettingsFile, { scope, projectRoot }),
+
+  listWorktrees: (root) => ipcRenderer.invoke(INVOKE.listWorktrees, root),
+  addWorktree: (root, input) => ipcRenderer.invoke(INVOKE.addWorktree, { root, input }),
+  removeWorktree: (root, path, force) =>
+    ipcRenderer.invoke(INVOKE.removeWorktree, { root, path, force }),
+  pruneWorktrees: (root) => ipcRenderer.invoke(INVOKE.pruneWorktrees, root),
   getNote: (sessionId) => ipcRenderer.invoke(INVOKE.getNote, sessionId),
   saveNote: (sessionId, text) => ipcRenderer.invoke(INVOKE.saveNote, { sessionId, text }),
   toggleBookmark: (sessionId, messageUuid) =>
     ipcRenderer.invoke(INVOKE.toggleBookmark, { sessionId, messageUuid }),
-  exportSession: (filePath, projectPath, encodedDir) =>
-    ipcRenderer.invoke(INVOKE.exportSession, { filePath, projectPath, encodedDir }),
+  exportSession: (filePath, projectPath, encodedDir, options) =>
+    ipcRenderer.invoke(INVOKE.exportSession, { filePath, projectPath, encodedDir, options }),
 
   listScripts: (root) => ipcRenderer.invoke(INVOKE.listScripts, root),
   startTask: (root, script) => ipcRenderer.invoke(INVOKE.startTask, { root, script }),

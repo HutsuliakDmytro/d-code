@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Plug,
   RefreshCw,
+  Settings2,
   Sparkles,
   Webhook,
   Package
@@ -12,6 +13,7 @@ import {
 import type { AgentType, HookEntry, McpServer, PluginEntry, SkillEntry } from '@shared/ipc'
 import { useWorkspaceStore } from '../store/workspace-store'
 import { useTranslate } from '../i18n'
+import EnvironmentEditDialog from './EnvironmentEditDialog'
 
 function Group({
   icon,
@@ -58,6 +60,9 @@ export default function EnvironmentPanel(): React.JSX.Element {
   const [hooks, setHooks] = useState<HookEntry[]>([])
   const [plugins, setPlugins] = useState<PluginEntry[]>([])
   const [checking, setChecking] = useState(false)
+  const [editing, setEditing] = useState(false)
+  // Bumped after an edit so the lists below reload without a full remount.
+  const [revision, setRevision] = useState(0)
 
   useEffect(() => {
     void window.claudeUI.listAgentTypes().then(setAgents)
@@ -67,7 +72,7 @@ export default function EnvironmentPanel(): React.JSX.Element {
 
   useEffect(() => {
     void window.claudeUI.listHooks(root).then(setHooks)
-  }, [root])
+  }, [root, revision])
 
   async function checkMcp(): Promise<void> {
     setChecking(true)
@@ -77,8 +82,17 @@ export default function EnvironmentPanel(): React.JSX.Element {
 
   return (
     <section className="pt-1 border-t border-[var(--color-border)]">
-      <h3 className="text-[10px] uppercase tracking-wide text-[var(--color-muted)] mb-1">
+      <h3 className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide
+                     text-[var(--color-muted)] mb-1">
         {t('Model environment')}
+        <button
+          onClick={() => setEditing(true)}
+          title={t('Configure MCP servers and hooks')}
+          className="ml-auto p-0.5 rounded hover:bg-[var(--color-surface-2)]
+                     hover:text-[var(--color-text)] transition-colors"
+        >
+          <Settings2 size={10} />
+        </button>
       </h3>
 
       <Group
@@ -167,6 +181,12 @@ export default function EnvironmentPanel(): React.JSX.Element {
           </div>
         ))}
       </Group>
+
+      <EnvironmentEditDialog
+        open={editing}
+        onClose={() => setEditing(false)}
+        onChanged={() => setRevision((v) => v + 1)}
+      />
     </section>
   )
 }

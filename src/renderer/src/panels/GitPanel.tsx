@@ -16,7 +16,8 @@ import {
   ArrowUpFromLine,
   RefreshCcw,
   Archive,
-  GitCompare
+  GitCompare,
+  FolderTree
 } from 'lucide-react'
 import type { GitBranch as Branch, GitCommit, GitFile } from '@shared/ipc'
 import { useWorkspaceStore } from '../store/workspace-store'
@@ -24,6 +25,7 @@ import { relativeTime } from '../lib/format'
 import CommitDialog from '../components/CommitDialog'
 import { useSettingsStore } from '../store/settings-store'
 import ConflictResolver from '../components/ConflictResolver'
+import WorktreeDialog from '../components/WorktreeDialog'
 import type { StashEntry } from '@shared/ipc'
 import { useTranslate } from '../i18n'
 
@@ -128,6 +130,7 @@ export default function GitPanel({
   const [remoteBusy, setRemoteBusy] = useState<string>()
   const [progress, setProgress] = useState<string>()
   const [stash, setStash] = useState<StashEntry[]>([])
+  const [showWorktrees, setShowWorktrees] = useState(false)
   const [showStash, setShowStash] = useState(false)
   const [conflictPath, setConflictPath] = useState<string>()
 
@@ -326,6 +329,13 @@ export default function GitPanel({
           className="p-0.5 rounded hover:bg-[var(--color-surface-2)]"
         >
           <GitCompare size={10} />
+        </button>
+        <button
+          onClick={() => setShowWorktrees(true)}
+          title={t('Worktrees — run agents on several branches at once')}
+          className="p-0.5 rounded hover:bg-[var(--color-surface-2)]"
+        >
+          <FolderTree size={10} />
         </button>
         <button
           onClick={() => setShowHistory((v) => !v)}
@@ -553,6 +563,12 @@ export default function GitPanel({
       {openCommit && (
         <CommitDialog root={root} commit={openCommit} onClose={() => setOpenCommit(undefined)} />
       )}
+
+      <WorktreeDialog
+        root={root}
+        open={showWorktrees}
+        onClose={() => setShowWorktrees(false)}
+      />
     </div>
   )
 }
